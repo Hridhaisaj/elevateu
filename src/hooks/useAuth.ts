@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext } from 'react'
+import { useEffect, useState, createContext, useContext, useCallback } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/types/database'
@@ -8,14 +8,15 @@ interface AuthState {
   session: Session | null
   profile: Profile | null
   loading: boolean
+  refreshProfile: () => Promise<void>
 }
 
-// We export a hook that reads from the AuthContext set up in AuthProvider
 export const AuthContext = createContext<AuthState>({
   user: null,
   session: null,
   profile: null,
   loading: true,
+  refreshProfile: async () => {},
 })
 
 export function useAuth() {
@@ -27,6 +28,16 @@ export function useAuthState(): AuthState {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    setProfile(data)
+    setLoading(false)
+  }, [])
+
+  const refreshProfile = useCallback(async () => {
+    if (user) await fetchProfile(user.id)
+  }, [user, fetchProfile])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,13 +58,7 @@ export function useAuthState(): AuthState {
     })
 
     return () => listener.subscription.unsubscribe()
-  }, [])
+  }, [fetchProfile])
 
-  async function fetchProfile(userId: string) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    setProfile(data)
-    setLoading(false)
-  }
-
-  return { user, session, profile, loading }
+  return { user, session, profile, loading, refreshProfile }
 }

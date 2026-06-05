@@ -5,10 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { GRADE_LEVELS } from '@/lib/utils'
 
 export default function SettingsPage() {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const qc = useQueryClient()
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     full_name: profile?.full_name ?? '',
@@ -31,9 +32,10 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!user) return
     setLoading(true)
-    await supabase.from('profiles').update({
+    setError('')
+    const { error: saveError } = await supabase.from('profiles').update({
       full_name: form.full_name,
-      username: form.username,
+      username: form.username.toLowerCase().trim(),
       headline: form.headline || null,
       bio: form.bio || null,
       school_name: form.school_name || null,
@@ -43,9 +45,18 @@ export default function SettingsPage() {
       graduation_year: form.graduation_year ? parseInt(form.graduation_year) : null,
       gpa: form.gpa ? parseFloat(form.gpa) : null,
     }).eq('id', user.id)
+
+    setLoading(false)
+
+    if (saveError) {
+      setError(saveError.code === '23505' ? 'That username is already taken.' : saveError.message)
+      return
+    }
+
+    // Refresh everything that reads the profile
+    await refreshProfile()
     qc.invalidateQueries({ queryKey: ['profile'] })
     setSaved(true)
-    setLoading(false)
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -116,6 +127,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
 
         <div className="flex items-center gap-3">
           <button type="submit" disabled={loading} className="btn-primary">

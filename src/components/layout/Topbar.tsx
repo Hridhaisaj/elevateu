@@ -21,7 +21,7 @@ export default function Topbar() {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-surface-border h-14">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-surface-border/70 shadow-sm h-14">
       <div className="max-w-6xl mx-auto px-4 h-full flex items-center gap-4">
         {/* Logo */}
         <Link to="/feed" className="flex items-center gap-1.5 flex-shrink-0">

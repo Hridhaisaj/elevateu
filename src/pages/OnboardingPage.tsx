@@ -7,7 +7,7 @@ import { GRADE_LEVELS } from '@/lib/utils'
 const STEPS = ['School', 'Grade & GPA', 'Bio'] as const
 
 export default function OnboardingPage() {
-  const { user } = useAuth()
+  const { user, refreshProfile } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -41,6 +41,7 @@ export default function OnboardingPage() {
       headline: form.headline || null,
       bio: form.bio || null,
     }).eq('id', user.id)
+    await refreshProfile()
     navigate('/feed')
   }
 

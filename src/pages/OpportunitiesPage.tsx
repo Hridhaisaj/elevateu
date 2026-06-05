@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Calendar, Bookmark, BookmarkCheck, Plus, Filter } from 'lucide-react'
+import { Search, MapPin, Calendar, Bookmark, BookmarkCheck, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { OPPORTUNITY_TYPES } from '@/lib/utils'
