@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Image, Send, Heart, MessageCircle, Bookmark, MapPin, Calendar } from 'lucide-react'
+import { Image, Send, Heart, MessageCircle, Bookmark, MapPin, Calendar, X, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { formatRelativeDate } from '@/lib/utils'
@@ -13,13 +13,37 @@ function PostComposer() {
   const { user, profile } = useAuth()
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5 MB.')
+      return
+    }
+    setUploading(true)
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+    const path = `posts/${user.id}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('logos').upload(path, file, { upsert: true, cacheControl: '3600' })
+    if (!error) {
+      const { data } = supabase.storage.from('logos').getPublicUrl(path)
+      setImageUrl(data.publicUrl)
+    }
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   async function submit() {
-    if (!content.trim() || !user) return
+    if ((!content.trim() && !imageUrl) || !user) return
     setLoading(true)
-    await supabase.from('posts').insert({ user_id: user.id, content: content.trim() })
+    await supabase.from('posts').insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
     setContent('')
+    setImageUrl(null)
     setLoading(false)
     qc.invalidateQueries({ queryKey: ['feed'] })
   }
@@ -37,13 +61,33 @@ function PostComposer() {
             placeholder="Share an update, achievement, or question…"
             className="w-full text-sm text-text-primary placeholder:text-text-muted resize-none border-none outline-none bg-transparent min-h-[72px]"
           />
+
+          {imageUrl && (
+            <div className="relative mt-1 mb-2 inline-block">
+              <img src={imageUrl} alt="" className="rounded-lg max-h-60 object-cover" />
+              <button
+                onClick={() => setImageUrl(null)}
+                className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                title="Remove image"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-2 border-t border-surface-border mt-2">
-            <button className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors">
-              <Image size={15} /> Photo
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={15} className="animate-spin" /> : <Image size={15} />}
+              {uploading ? 'Uploading…' : 'Photo'}
             </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
             <button
               onClick={submit}
-              disabled={!content.trim() || loading}
+              disabled={(!content.trim() && !imageUrl) || loading || uploading}
               className="btn-primary py-1.5 flex items-center gap-1.5 disabled:opacity-40"
             >
               <Send size={13} /> Post
