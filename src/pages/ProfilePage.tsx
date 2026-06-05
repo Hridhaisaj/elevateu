@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   MapPin, GraduationCap, Calendar, Star, Award, Zap,
-  Edit2, UserPlus, MessageSquare, Plus, Trash2, Building2, Clock, X,
+  Edit2, UserPlus, MessageSquare, Plus, Trash2, Building2, Clock, X, Camera, Loader2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
@@ -78,6 +78,8 @@ export default function ProfilePage() {
   const [eduForm, setEduForm] = useState<{ open: boolean; editing: EducationWithSchool | null }>({ open: false, editing: null })
   const [awardForm, setAwardForm] = useState<{ open: boolean; editing: Achievement | null }>({ open: false, editing: null })
   const [newSkill, setNewSkill] = useState('')
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   // ─── Profile ───
   const { data: profile, isLoading } = useQuery({
@@ -180,6 +182,31 @@ export default function ProfilePage() {
     if (isOwn) refreshProfile()
   }
 
+  async function uploadProfileImage(
+    file: File | undefined,
+    folder: 'avatars' | 'covers',
+    column: 'avatar_url' | 'cover_photo_url',
+    setBusy: (b: boolean) => void,
+  ) {
+    if (!file || !pid) return
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Image must be under 3 MB.')
+      return
+    }
+    setBusy(true)
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+    const path = `${folder}/${pid}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('logos').upload(path, file, { upsert: true, cacheControl: '3600' })
+    if (!error) {
+      const { data } = supabase.storage.from('logos').getPublicUrl(path)
+      await supabase.from('profiles').update({ [column]: data.publicUrl }).eq('id', pid)
+      await refreshProfile()
+      qc.invalidateQueries({ queryKey: ['profile', username] })
+    }
+    setBusy(false)
+  }
+
   if (isLoading) return (
     <div className="animate-pulse space-y-4">
       <div className="card h-48" />
@@ -198,12 +225,30 @@ export default function ProfilePage() {
       {/* ─── Header ─── */}
       <div className="card overflow-hidden">
         <div
-          className="h-28 bg-gradient-to-br from-brand-600 to-brand-500"
+          className="relative h-28 bg-gradient-to-br from-brand-600 to-brand-500"
           style={profile.cover_photo_url ? { backgroundImage: `url(${profile.cover_photo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-        />
+        >
+          {isOwn && (
+            <label className="absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1 bg-black/40 hover:bg-black/55 text-white text-xs font-medium rounded-md cursor-pointer backdrop-blur-sm transition-colors">
+              {uploadingCover ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+              {uploadingCover ? 'Uploading…' : 'Edit cover'}
+              <input type="file" accept="image/*" className="hidden" disabled={uploadingCover}
+                onChange={(e) => uploadProfileImage(e.target.files?.[0], 'covers', 'cover_photo_url', setUploadingCover)} />
+            </label>
+          )}
+        </div>
         <div className="px-5 pb-5">
           <div className="flex items-end justify-between -mt-12 mb-3">
-            <Avatar src={profile.avatar_url} name={profile.full_name} size="xl" className="ring-4 ring-white shadow-sm" />
+            <div className="relative">
+              <Avatar src={profile.avatar_url} name={profile.full_name} size="xl" className="ring-4 ring-white shadow-sm" />
+              {isOwn && (
+                <label className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow border border-surface-border cursor-pointer hover:bg-slate-50 transition-colors">
+                  {uploadingAvatar ? <Loader2 size={13} className="animate-spin text-text-secondary" /> : <Camera size={13} className="text-text-secondary" />}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar}
+                    onChange={(e) => uploadProfileImage(e.target.files?.[0], 'avatars', 'avatar_url', setUploadingAvatar)} />
+                </label>
+              )}
+            </div>
             <div className="flex gap-2 pb-1">
               {isOwn ? (
                 <Link to="/settings"><Button variant="secondary"><Edit2 size={14} /> Edit profile</Button></Link>
