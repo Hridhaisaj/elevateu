@@ -14,6 +14,7 @@ import Button from '@/components/ui/Button'
 import ExperienceForm from '@/components/profile/ExperienceForm'
 import EducationForm from '@/components/profile/EducationForm'
 import AwardForm from '@/components/profile/AwardForm'
+import AvatarCropModal from '@/components/profile/AvatarCropModal'
 import type {
   Profile, ExperienceWithCompany, Experience, EducationWithSchool, Achievement, Skill, Connection,
 } from '@/types/database'
@@ -80,6 +81,7 @@ export default function ProfilePage() {
   const [newSkill, setNewSkill] = useState('')
   const [uploadingCover, setUploadingCover] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
 
   // ─── Profile ───
   const { data: profile, isLoading } = useQuery({
@@ -207,6 +209,38 @@ export default function ProfilePage() {
     setBusy(false)
   }
 
+  function pickAvatar(file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5 MB.')
+      return
+    }
+    setCropSrc(URL.createObjectURL(file))
+  }
+
+  function closeCrop() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+
+  async function uploadAvatarBlob(blob: Blob) {
+    if (!pid) return
+    setUploadingAvatar(true)
+    const path = `avatars/${pid}-${Date.now()}.jpg`
+    const { error } = await supabase.storage
+      .from('logos')
+      .upload(path, blob, { upsert: true, cacheControl: '3600', contentType: 'image/jpeg' })
+    if (!error) {
+      const { data } = supabase.storage.from('logos').getPublicUrl(path)
+      await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', pid)
+      await refreshProfile()
+      qc.invalidateQueries({ queryKey: ['profile', username] })
+    }
+    setUploadingAvatar(false)
+    closeCrop()
+  }
+
   if (isLoading) return (
     <div className="animate-pulse space-y-4">
       <div className="card h-48" />
@@ -245,7 +279,7 @@ export default function ProfilePage() {
                 <label className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow border border-surface-border cursor-pointer hover:bg-slate-50 transition-colors">
                   {uploadingAvatar ? <Loader2 size={13} className="animate-spin text-text-secondary" /> : <Camera size={13} className="text-text-secondary" />}
                   <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar}
-                    onChange={(e) => uploadProfileImage(e.target.files?.[0], 'avatars', 'avatar_url', setUploadingAvatar)} />
+                    onChange={(e) => { pickAvatar(e.target.files?.[0]); e.target.value = '' }} />
                 </label>
               )}
             </div>
@@ -415,6 +449,10 @@ export default function ProfilePage() {
           <EducationForm open={eduForm.open} existing={eduForm.editing} userId={pid} onClose={() => setEduForm({ open: false, editing: null })} onSaved={() => refetchAll('education')} />
           <AwardForm open={awardForm.open} existing={awardForm.editing} userId={pid} onClose={() => setAwardForm({ open: false, editing: null })} onSaved={() => refetchAll('awards')} />
         </>
+      )}
+
+      {cropSrc && (
+        <AvatarCropModal src={cropSrc} onCancel={closeCrop} onCropped={uploadAvatarBlob} />
       )}
     </div>
   )
