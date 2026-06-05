@@ -7,6 +7,7 @@ import OnboardingPage from '@/pages/OnboardingPage'
 import FeedPage from '@/pages/FeedPage'
 import ProfilePage from '@/pages/ProfilePage'
 import OpportunitiesPage from '@/pages/OpportunitiesPage'
+import NewOpportunityPage from '@/pages/NewOpportunityPage'
 import OpportunityDetailPage from '@/pages/OpportunityDetailPage'
 import NetworkPage from '@/pages/NetworkPage'
 import MessagesPage from '@/pages/MessagesPage'
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/feed" element={<FeedPage />} />
             <Route path="/profile/:username" element={<ProfilePage />} />
             <Route path="/opportunities" element={<OpportunitiesPage />} />
+            <Route path="/opportunities/new" element={<NewOpportunityPage />} />
             <Route path="/opportunities/:id" element={<OpportunityDetailPage />} />
             <Route path="/network" element={<NetworkPage />} />
             <Route path="/messages" element={<MessagesPage />} />
