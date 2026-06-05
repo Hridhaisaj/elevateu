@@ -25,8 +25,8 @@ export default function Topbar() {
       <div className="max-w-6xl mx-auto px-4 h-full flex items-center gap-4">
         {/* Logo */}
         <Link to="/feed" className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-brand-500 font-bold text-lg leading-none">Elevate</span>
-          <span className="bg-brand-500 text-white text-xs font-bold px-1.5 py-0.5 rounded">U</span>
+          <span className="text-brand-500 font-bold text-lg leading-none">Home</span>
+          <span className="bg-brand-500 text-white text-sm font-bold px-1.5 py-0.5 rounded leading-none">room</span>
         </Link>
 
         {/* Search */}

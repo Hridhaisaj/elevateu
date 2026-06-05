@@ -50,8 +50,8 @@ export default function OnboardingPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-1.5 mb-3">
-            <span className="text-brand-500 font-bold text-xl">Elevate</span>
-            <span className="bg-brand-500 text-white text-xs font-bold px-1.5 py-0.5 rounded">U</span>
+            <span className="text-brand-500 font-bold text-xl">Home</span>
+            <span className="bg-brand-500 text-white text-sm font-bold px-1.5 py-0.5 rounded">room</span>
           </div>
           <h1 className="text-xl font-semibold text-text-primary">Set up your profile</h1>
           <p className="text-sm text-text-secondary mt-1">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>

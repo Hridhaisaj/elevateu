@@ -28,8 +28,8 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 mb-2">
-            <span className="text-brand-500 font-bold text-2xl">Elevate</span>
-            <span className="bg-brand-500 text-white text-sm font-bold px-1.5 py-0.5 rounded">U</span>
+            <span className="text-brand-500 font-bold text-2xl">Home</span>
+            <span className="bg-brand-500 text-white text-base font-bold px-2 py-0.5 rounded">room</span>
           </div>
           <p className="text-text-muted text-sm">The professional network for high schoolers</p>
         </div>
