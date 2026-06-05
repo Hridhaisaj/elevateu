@@ -2,20 +2,26 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
-import type { Education } from '@/types/database'
+import SchoolCombobox from './SchoolCombobox'
+import type { EntitySelection } from './EntityCombobox'
+import type { EducationWithSchool } from '@/types/database'
 
 interface Props {
   open: boolean
   onClose: () => void
   userId: string
-  existing?: Education | null
+  existing?: EducationWithSchool | null
   onSaved: () => void
 }
 
 export default function EducationForm({ open, onClose, userId, existing, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
+  const [school, setSchool] = useState<EntitySelection>({
+    id: existing?.school_id ?? null,
+    name: existing?.school_name ?? '',
+    logo_url: existing?.schools?.logo_url ?? null,
+  })
   const [form, setForm] = useState({
-    school_name: existing?.school_name ?? '',
     degree: existing?.degree ?? '',
     field_of_study: existing?.field_of_study ?? '',
     start_year: existing?.start_year?.toString() ?? '',
@@ -30,11 +36,12 @@ export default function EducationForm({ open, onClose, userId, existing, onSaved
   }
 
   async function save() {
-    if (!form.school_name.trim()) return
+    if (!school.name.trim()) return
     setSaving(true)
     const payload = {
       user_id: userId,
-      school_name: form.school_name.trim(),
+      school_id: school.id,
+      school_name: school.name.trim(),
       degree: form.degree.trim() || null,
       field_of_study: form.field_of_study.trim() || null,
       start_year: form.start_year ? parseInt(form.start_year) : null,
@@ -61,7 +68,7 @@ export default function EducationForm({ open, onClose, userId, existing, onSaved
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={save} disabled={saving || !form.school_name.trim()}>
+          <Button onClick={save} disabled={saving || !school.name.trim()}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </>
@@ -70,7 +77,8 @@ export default function EducationForm({ open, onClose, userId, existing, onSaved
       <div className="space-y-4">
         <div>
           <label className="label">School *</label>
-          <input value={form.school_name} onChange={(e) => set('school_name', e.target.value)} className="input" placeholder="Lincoln High School" />
+          <SchoolCombobox value={school} onChange={setSchool} />
+          <p className="text-xs text-text-muted mt-1">Search for your school or add it, then upload its logo.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

@@ -4,6 +4,7 @@ import { EXPERIENCE_TYPES } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import CompanyCombobox from './CompanyCombobox'
+import type { EntitySelection } from './EntityCombobox'
 import type { Experience } from '@/types/database'
 
 interface Props {
@@ -21,7 +22,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function ExperienceForm({ open, onClose, userId, existing, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
-  const [company, setCompany] = useState<{ id: string | null; name: string }>({
+  const [company, setCompany] = useState<EntitySelection>({
     id: existing?.company_id ?? null,
     name: existing?.organization ?? '',
   })

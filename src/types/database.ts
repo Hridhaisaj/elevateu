@@ -48,9 +48,21 @@ export interface Company {
   created_at: string
 }
 
+export interface School {
+  id: string
+  created_by: string | null
+  name: string
+  logo_url: string | null
+  location: string | null
+  website: string | null
+  description: string | null
+  created_at: string
+}
+
 export interface Education {
   id: string
   user_id: string
+  school_id: string | null
   school_name: string
   degree: string | null
   field_of_study: string | null
@@ -162,6 +174,7 @@ export interface Database {
       profiles: TableDef<Profile, Partial<Profile> & { id: string; username: string; full_name: string }>
       experiences: TableDef<Experience, Omit<Experience, 'id' | 'created_at'>>
       companies: TableDef<Company, Omit<Company, 'id' | 'created_at'>>
+      schools: TableDef<School, Omit<School, 'id' | 'created_at'>>
       education: TableDef<Education, Omit<Education, 'id' | 'created_at'>>
       achievements: TableDef<Achievement, Omit<Achievement, 'id' | 'created_at'>>
       skills: TableDef<Skill, Omit<Skill, 'id' | 'created_at'>>
@@ -183,6 +196,10 @@ export interface Database {
 // ─── Composed/joined convenience types ────────────────────────────────────────
 export type ExperienceWithCompany = Experience & {
   companies: Pick<Company, 'id' | 'name' | 'logo_url' | 'industry'> | null
+}
+
+export type EducationWithSchool = Education & {
+  schools: Pick<School, 'id' | 'name' | 'logo_url'> | null
 }
 
 export type PostWithAuthor = Post & {

@@ -1,4 +1,4 @@
-import { Building2 } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 import EntityCombobox, { type EntitySelection } from './EntityCombobox'
 
 interface Props {
@@ -6,15 +6,15 @@ interface Props {
   onChange: (val: EntitySelection) => void
 }
 
-export default function CompanyCombobox({ value, onChange }: Props) {
+export default function SchoolCombobox({ value, onChange }: Props) {
   return (
     <EntityCombobox
-      table="companies"
+      table="schools"
       value={value}
       onChange={onChange}
-      icon={Building2}
-      placeholder="Search or add organization…"
-      logoLabel="Upload company logo"
+      icon={GraduationCap}
+      placeholder="Search or add school…"
+      logoLabel="Upload school logo"
     />
   )
 }

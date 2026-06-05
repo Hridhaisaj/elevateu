@@ -15,7 +15,7 @@ import ExperienceForm from '@/components/profile/ExperienceForm'
 import EducationForm from '@/components/profile/EducationForm'
 import AwardForm from '@/components/profile/AwardForm'
 import type {
-  Profile, ExperienceWithCompany, Experience, Education, Achievement, Skill, Connection,
+  Profile, ExperienceWithCompany, Experience, EducationWithSchool, Achievement, Skill, Connection,
 } from '@/types/database'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -75,7 +75,7 @@ export default function ProfilePage() {
   const navigate = useNavigate()
 
   const [expForm, setExpForm] = useState<{ open: boolean; editing: Experience | null }>({ open: false, editing: null })
-  const [eduForm, setEduForm] = useState<{ open: boolean; editing: Education | null }>({ open: false, editing: null })
+  const [eduForm, setEduForm] = useState<{ open: boolean; editing: EducationWithSchool | null }>({ open: false, editing: null })
   const [awardForm, setAwardForm] = useState<{ open: boolean; editing: Achievement | null }>({ open: false, editing: null })
   const [newSkill, setNewSkill] = useState('')
 
@@ -110,8 +110,12 @@ export default function ProfilePage() {
     queryKey: ['education', pid],
     enabled: !!pid,
     queryFn: async () => {
-      const { data } = await supabase.from('education').select('*').eq('user_id', pid!).order('end_year', { ascending: false })
-      return (data ?? []) as Education[]
+      const { data } = await supabase
+        .from('education')
+        .select('*, schools(id, name, logo_url)')
+        .eq('user_id', pid!)
+        .order('end_year', { ascending: false })
+      return (data ?? []) as EducationWithSchool[]
     },
   })
 
@@ -277,8 +281,12 @@ export default function ProfilePage() {
           <div className="space-y-1">
             {education.map((edu) => (
               <div key={edu.id} className="flex gap-3 py-3 border-b border-surface-border last:border-0">
-                <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap size={18} className="text-text-muted" />
+                <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {edu.schools?.logo_url ? (
+                    <img src={edu.schools.logo_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <GraduationCap size={18} className="text-text-muted" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-text-primary">{edu.school_name}</p>
