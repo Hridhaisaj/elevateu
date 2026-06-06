@@ -1,7 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk'
-
 // Runs on Vercel's Edge runtime. Your ANTHROPIC_API_KEY stays on the server and
-// is never shipped to the browser.
+// is never shipped to the browser. We call Anthropic over native fetch (no SDK)
+// so the function always bundles cleanly on the Edge runtime.
 export const config = { runtime: 'edge' }
 
 const SYSTEM_PROMPT = `You are a content moderator for Homeroom, a professional and educational social network for high school students.
@@ -39,19 +38,28 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (!content.trim()) return json({ allowed: true })
 
-  const client = new Anthropic({ apiKey })
-
   try {
-    const msg = await client.messages.create({
-      model: 'claude-opus-4-7',
-      max_tokens: 200,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Post to review:\n"""\n${content}\n"""` }],
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
+        max_tokens: 200,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: `Post to review:\n"""\n${content}\n"""` }],
+      }),
     })
 
-    const text = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
+    if (!resp.ok) return json({ allowed: true, reason: 'moderation-error' })
+
+    const data = (await resp.json()) as { content?: Array<{ type: string; text?: string }> }
+    const text = (data.content ?? [])
+      .filter((b) => b.type === 'text' && typeof b.text === 'string')
+      .map((b) => b.text as string)
       .join('')
 
     const match = text.match(/\{[\s\S]*\}/)
