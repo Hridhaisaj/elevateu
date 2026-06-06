@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Image, Send, Heart, MessageCircle, Bookmark, MapPin, Calendar, X, Loader2 } from 'lucide-react'
+import { Image, Send, Heart, MessageCircle, Bookmark, MapPin, Calendar, X, Loader2, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { formatRelativeDate } from '@/lib/utils'
@@ -15,6 +15,7 @@ function PostComposer() {
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [modError, setModError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
@@ -40,7 +41,31 @@ function PostComposer() {
 
   async function submit() {
     if ((!content.trim() && !imageUrl) || !user) return
+    setModError('')
     setLoading(true)
+
+    // AI moderation: keep posts education / career related. Fails open if the
+    // moderation endpoint is unavailable so posting never breaks.
+    if (content.trim()) {
+      try {
+        const res = await fetch('/api/moderate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ content: content.trim() }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.allowed === false) {
+            setModError(data.reason || "This post doesn't look related to school, careers, or opportunities, so it wasn't posted.")
+            setLoading(false)
+            return
+          }
+        }
+      } catch {
+        // Network/endpoint error — allow the post through.
+      }
+    }
+
     await supabase.from('posts').insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
     setContent('')
     setImageUrl(null)
@@ -75,6 +100,12 @@ function PostComposer() {
             </div>
           )}
 
+          {modError && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+              {modError}
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-2 border-t border-surface-border mt-2">
             <button
               onClick={() => fileRef.current?.click()}
@@ -100,9 +131,16 @@ function PostComposer() {
 }
 
 // ─── Post Card ────────────────────────────────────────────────────────────────
-function PostCard({ post, currentUserId }: { post: PostWithAuthor; currentUserId: string }) {
+function PostCard({ post, currentUserId, isAdmin }: { post: PostWithAuthor; currentUserId: string; isAdmin: boolean }) {
   const qc = useQueryClient()
   const liked = post.post_likes.some((l) => l.user_id === currentUserId)
+  const canDelete = currentUserId === post.user_id || isAdmin
+
+  async function deletePost() {
+    if (!confirm('Delete this post?')) return
+    await supabase.from('posts').delete().eq('id', post.id)
+    qc.invalidateQueries({ queryKey: ['feed'] })
+  }
 
   async function toggleLike() {
     if (liked) {
@@ -130,6 +168,15 @@ function PostCard({ post, currentUserId }: { post: PostWithAuthor; currentUserId
           </div>
           <p className="text-xs text-text-muted">{formatRelativeDate(post.created_at)}</p>
         </div>
+        {canDelete && (
+          <button
+            onClick={deletePost}
+            className="flex-shrink-0 p-1.5 rounded-md text-text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
+            title={isAdmin && currentUserId !== post.user_id ? 'Delete post (admin)' : 'Delete post'}
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
 
       <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">{post.content}</p>
@@ -244,7 +291,7 @@ export default function FeedPage() {
           </div>
         ) : (
           posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={user?.id ?? ''} />
+            <PostCard key={post.id} post={post} currentUserId={user?.id ?? ''} isAdmin={profile?.is_admin ?? false} />
           ))
         )}
       </div>

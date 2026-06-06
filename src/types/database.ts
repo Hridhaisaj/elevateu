@@ -17,6 +17,7 @@ export interface Profile {
   cover_photo_url: string | null
   gpa: number | null
   headline: string | null
+  is_admin: boolean
   created_at: string
   updated_at: string
 }
