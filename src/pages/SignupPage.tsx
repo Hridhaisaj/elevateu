@@ -6,6 +6,7 @@ export default function SignupPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '', fullName: '' })
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
 
   function update(field: string, value: string) {
@@ -15,13 +16,17 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setNotice('')
     setLoading(true)
 
-    const username = form.fullName.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 999)
-
+    // The profile row is created server-side by the on_auth_user_created
+    // trigger (see supabase/migration_v5.sql). We pass full_name through user
+    // metadata so the trigger can use it — no client-side insert needed, which
+    // means signup works even before the email is confirmed.
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
+      options: { data: { full_name: form.fullName.trim() } },
     })
 
     if (signUpError || !data.user) {
@@ -30,12 +35,14 @@ export default function SignupPage() {
       return
     }
 
-    // Create profile
-    await supabase.from('profiles').insert({
-      id: data.user.id,
-      username,
-      full_name: form.fullName,
-    })
+    // If there's no session, this project requires email confirmation.
+    if (!data.session) {
+      setLoading(false)
+      setNotice(
+        `Almost there! We sent a confirmation link to ${form.email}. Click it to activate your account, then sign in.`,
+      )
+      return
+    }
 
     navigate('/onboarding')
   }
@@ -91,6 +98,10 @@ export default function SignupPage() {
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+            )}
+
+            {notice && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">{notice}</p>
             )}
 
             <button type="submit" disabled={loading} className="btn-primary w-full justify-center">
