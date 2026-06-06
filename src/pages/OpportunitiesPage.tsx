@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Calendar, Bookmark, BookmarkCheck, Plus } from 'lucide-react'
+import { Search, MapPin, Calendar, Bookmark, BookmarkCheck, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { OPPORTUNITY_TYPES } from '@/lib/utils'
@@ -15,10 +15,13 @@ const TYPE_LABELS: Record<string, string> = {
   competition: 'Competition', program: 'Program', job: 'Job', other: 'Other',
 }
 
-function OpportunityCard({ opp, savedIds, onToggleSave }: {
+function OpportunityCard({ opp, savedIds, onToggleSave, canDelete, isAdmin, onDelete }: {
   opp: Opportunity
   savedIds: Set<string>
   onToggleSave: (id: string) => void
+  canDelete: boolean
+  isAdmin: boolean
+  onDelete: (id: string) => void
 }) {
   const saved = savedIds.has(opp.id)
   const daysLeft = opp.deadline
@@ -36,13 +39,24 @@ function OpportunityCard({ opp, savedIds, onToggleSave }: {
               </Link>
               <p className="text-sm text-text-secondary mt-0.5">{opp.organization}</p>
             </div>
-            <button
-              onClick={() => onToggleSave(opp.id)}
-              className="flex-shrink-0 text-text-muted hover:text-brand-500 transition-colors"
-              title={saved ? 'Unsave' : 'Save'}
-            >
-              {saved ? <BookmarkCheck size={16} className="text-brand-500" /> : <Bookmark size={16} />}
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => onToggleSave(opp.id)}
+                className="text-text-muted hover:text-brand-500 transition-colors"
+                title={saved ? 'Unsave' : 'Save'}
+              >
+                {saved ? <BookmarkCheck size={16} className="text-brand-500" /> : <Bookmark size={16} />}
+              </button>
+              {canDelete && (
+                <button
+                  onClick={() => onDelete(opp.id)}
+                  className="p-1 rounded-md text-text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
+                  title={isAdmin ? 'Delete opportunity (admin)' : 'Delete opportunity'}
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 mt-2">
@@ -73,8 +87,9 @@ function OpportunityCard({ opp, savedIds, onToggleSave }: {
 }
 
 export default function OpportunitiesPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const qc = useQueryClient()
+  const isAdmin = profile?.is_admin ?? false
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
 
@@ -107,6 +122,20 @@ export default function OpportunitiesPage() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['saved-opportunities'] }),
   })
+
+  const deleteOpp = useMutation({
+    mutationFn: async (oppId: string) => {
+      const { error } = await supabase.from('opportunities').delete().eq('id', oppId)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['opportunities'] }),
+    onError: (err) => alert(`Could not delete: ${(err as Error).message}`),
+  })
+
+  function handleDelete(oppId: string) {
+    if (!confirm('Delete this opportunity? This cannot be undone.')) return
+    deleteOpp.mutate(oppId)
+  }
 
   const filtered = opportunities.filter((o) =>
     !search || o.title.toLowerCase().includes(search.toLowerCase()) || o.organization.toLowerCase().includes(search.toLowerCase())
@@ -166,6 +195,9 @@ export default function OpportunitiesPage() {
               opp={opp}
               savedIds={savedIds}
               onToggleSave={(id) => toggleSave.mutate(id)}
+              canDelete={isAdmin || opp.created_by === user?.id}
+              isAdmin={isAdmin}
+              onDelete={handleDelete}
             />
           ))}
         </div>
